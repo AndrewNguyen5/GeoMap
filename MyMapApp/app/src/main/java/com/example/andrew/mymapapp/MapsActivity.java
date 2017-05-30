@@ -13,6 +13,8 @@ import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
 import android.util.Log;
 import android.view.View;
+import android.widget.EditText;
+import android.widget.Toast;
 
 import com.google.android.gms.common.ConnectionResult;
 import com.google.android.gms.common.api.GoogleApiClient;
@@ -33,11 +35,19 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     public static final String TAG = MapsActivity.class.getSimpleName();
     private final static int CONNECTION_FAILURE_RESOLUTION_REQUEST = 9000;
     private LocationRequest mLocationRequest;
+    private EditText searchBarText;
+    private LocationManager locationManager;
+    private boolean isGPSEnabled = false;
+    private boolean isNetworkEnabled = false;
+    private boolean canGetLocation = false;
+    private final static long MIN_TIME_IN_UPDATES = 1000*15*1;
+    private final static long MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_maps);
+
         // Obtain the SupportMapFragment and get notified when the map is ready to be used.
         SupportMapFragment mapFragment = (SupportMapFragment) getSupportFragmentManager()
                 .findFragmentById(R.id.map);
@@ -73,8 +83,6 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         LatLng birth = new LatLng(32.7157,-117.1611);
         mMap.addMarker(new MarkerOptions().position(birth).title("Marker in Place of Birth"));
         mMap.moveCamera(CameraUpdateFactory.newLatLng(birth));
-
-
     }
 
     public void changeMapType(View v){
@@ -84,6 +92,22 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         else if(mMap.getMapType()==GoogleMap.MAP_TYPE_HYBRID){
             mMap.setMapType(GoogleMap.MAP_TYPE_NORMAL);
         }
+    }
+
+    public void pointsOfInterest(View v){
+        searchBarText = (EditText) findViewById(R.id.searchText);
+        String loc=searchBarText.getText().toString().toLowerCase();
+        if(loc.equals("balboa park")){
+            LatLng balboa = new LatLng(32.730831,-117.142586);
+            mMap.addMarker(new MarkerOptions().position(balboa).title("Balboa Park"));
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(balboa));
+        }
+        if(loc.equals("airport")){
+            LatLng airport = new LatLng(32.7338006,-117.193303792);
+            mMap.addMarker(new MarkerOptions().position(airport).title("San Diego Airport"));
+            mMap.moveCamera(CameraUpdateFactory.newLatLng(airport));
+        }
+
     }
 
     @Override
@@ -99,6 +123,7 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             Log.d(TAG, Integer.toString(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)));
             ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},2);
         }
+        mMap.setMyLocationEnabled(true);
         Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
         if (location == null) {
             LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,mLocationRequest,this);
@@ -157,5 +182,60 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         super.onResume();
         mGoogleApiClient.connect();
     }
+
+    public void getLocation(){
+
+        try{
+            locationManager = (LocationManager) getSystemService(LOCATION_SERVICE);
+
+
+            //get GPS status
+            isGPSEnabled = locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER);
+            if(isGPSEnabled){
+                Log.d(TAG,"getLocation: GPS enabled");
+            }
+            isNetworkEnabled = locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER);
+            if(isNetworkEnabled){
+                Log.d(TAG,"getLocation: Network enabled");
+            }
+
+            if(!isGPSEnabled && !isNetworkEnabled){
+                Log.d(TAG,"getLocation: No provider is enabled");
+            } else{
+
+                this.canGetLocation = true;
+
+                if(isNetworkEnabled){
+                    Log.d(TAG,"getLocation: Network enabled - requesting location updates");
+                    locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER,
+                            MIN_TIME_IN_UPDATES,
+                            MIN_DISTANCE_CHANGE_FOR_UPDATES,
+                            locationListenerNetwork);
+
+                    Log.d(TAG,"getLocation: Network update request successful");
+                    Toast.makeText(this, "Using Network", Toast.LENGTH_SHORT);
+                }
+
+                if(isGPSEnabled){
+                    Log.d(TAG,"getLocation: GPS enabled - requesting location updates");
+                    locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER,
+                            MIN_TIME_IN_UPDATES,
+                            MIN_DISTANCE_CHANGE_FOR_UPDATES,
+                            locationListenerGPS);
+
+                    Log.d(TAG,"getLocation: GPS update request successful");
+                    Toast.makeText(this, "Using GPS", Toast.LENGTH_SHORT);
+                }
+
+            }
+
+        }catch (Exception e){
+            Log.d(TAG, "Caught exception in getLocation");
+            e.printStackTrace();
+        }
+
+    }
+
+
 
 }
