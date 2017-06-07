@@ -2,21 +2,27 @@ package com.example.andrew.mymapapp;
 
 import android.Manifest;
 import android.app.Activity;
+import android.content.Intent;
 import android.content.IntentSender;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
 import android.icu.text.StringPrepParseException;
+import android.location.Address;
 import android.location.Criteria;
+import android.location.Geocoder;
 import android.location.Location;
 import android.location.LocationManager;
 import android.location.LocationProvider;
+import android.provider.Settings;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.FragmentActivity;
 import android.os.Bundle;
+import android.text.TextUtils;
 import android.util.Log;
 import android.view.View;
+import android.widget.Button;
 import android.widget.EditText;
 import android.widget.Toast;
 
@@ -35,6 +41,11 @@ import com.google.android.gms.maps.model.CircleOptions;
 import com.google.android.gms.maps.model.LatLng;
 import com.google.android.gms.maps.model.MarkerOptions;
 
+import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Locale;
+
 public class MapsActivity extends FragmentActivity implements OnMapReadyCallback {
 
     private GoogleMap mMap;
@@ -51,6 +62,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
     private final static long MIN_DISTANCE_CHANGE_FOR_UPDATES = 5;
     private Location myLocation;
     private final static int MY_LOC_ZOOM_FACTOR = 17;
+    private boolean tracking = false;
+    private Button trackingButton;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -106,104 +119,35 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
     public void pointsOfInterest(View v) {
         searchBarText = (EditText) findViewById(R.id.searchText);
-        String loc = searchBarText.getText().toString().toLowerCase();
-        if (loc.equals("balboa park")) {
-            LatLng balboa = new LatLng(32.730831, -117.142586);
-            mMap.addMarker(new MarkerOptions().position(balboa).title("Balboa Park"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(balboa));
-        }
-        if (loc.equals("airport")) {
-            LatLng airport = new LatLng(32.7338006, -117.193303792);
-            mMap.addMarker(new MarkerOptions().position(airport).title("San Diego Airport"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(airport));
-        }
-        if (loc.equals("seaworld")) {
-            LatLng seaworld = new LatLng(32.7648, -117.2266);
-            mMap.addMarker(new MarkerOptions().position(seaworld).title("Seaworld"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(seaworld));
-        }
-        if (loc.equals("zoo")) {
-            LatLng zoo = new LatLng(32.7347483943, -117.150943196);
-            mMap.addMarker(new MarkerOptions().position(zoo).title("San Diego Zoo"));
-            mMap.moveCamera(CameraUpdateFactory.newLatLng(zoo));
-        }
-
-    }
-
-   /* @Override
-    public void onConnected(@Nullable Bundle bundle) {
-        Log.d(TAG, "Location services connected.");
-        if (ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.GET_PERMISSIONS){
-            Log.d(TAG, "Failed Permission check 1");
-            Log.d(TAG, Integer.toString(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_FINE_LOCATION)));
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_FINE_LOCATION},2);
-        }
-        if(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)!= PackageManager.GET_PERMISSIONS ){
-            Log.d(TAG, "Failed Permission check 2");
-            Log.d(TAG, Integer.toString(ActivityCompat.checkSelfPermission(this, Manifest.permission.ACCESS_COARSE_LOCATION)));
-            ActivityCompat.requestPermissions(this, new String[]{Manifest.permission.ACCESS_COARSE_LOCATION},2);
-        }
-        mMap.setMyLocationEnabled(true);
-        Location location = LocationServices.FusedLocationApi.getLastLocation(mGoogleApiClient);
-        if (location == null) {
-            LocationServices.FusedLocationApi.requestLocationUpdates(mGoogleApiClient,mLocationRequest,this);
-        }
-        else {
-            handleNewLocation(location);
-        }
-    }
-
-    @Override
-    public void onConnectionSuspended(int i) {
-        Log.d(TAG, "Location services suspended. Please reconnect.");
-    }
-
-    @Override
-    public void onConnectionFailed(@NonNull ConnectionResult connectionResult) {
-        if (connectionResult.hasResolution()) {
-            try {
-                // Start an Activity that tries to resolve the error
-                connectionResult.startResolutionForResult(this, CONNECTION_FAILURE_RESOLUTION_REQUEST);
-            } catch (IntentSender.SendIntentException e) {
-                e.printStackTrace();
+        String loc = searchBarText.getText().toString();
+        Geocoder geo = new Geocoder(this,Locale.US);
+        List<Address> addressList = null;
+        try{
+            Log.d(TAG, "pointsOfInterest: Getting address");
+            addressList = geo.getFromLocationName(loc,500);
+            for(int i=0;i<addressList.size();i++){
+                mMap.addMarker(new MarkerOptions()
+                        .position(new LatLng(addressList.get(i).getLatitude(),
+                                addressList.get(i).getLongitude()))
+                        .title(addressList.get(i).toString()));
+                mMap.moveCamera(CameraUpdateFactory
+                        .newLatLng
+                                (new LatLng(addressList.get(i).getLatitude(),
+                                                addressList.get(i).getLongitude())));
             }
-        } else {
-            Log.d(TAG, "Location services connection failed with code " + connectionResult.getErrorCode());
+            Log.d(TAG,"pointsOfInterest: Successful");
         }
-    }
-    private void handleNewLocation(Location location) {
-        Log.d(TAG, location.toString());
-        double currentLatitude = location.getLatitude();
-        double currentLongitude = location.getLongitude();
-        LatLng latLng = new LatLng(currentLatitude, currentLongitude);
-
-        MarkerOptions options = new MarkerOptions()
-                .position(latLng)
-                .title("I am here!");
-        mMap.addMarker(options);
-        mMap.moveCamera(CameraUpdateFactory.newLatLng(latLng));
-    }
-
-    @Override
-    public void onLocationChanged(Location location) {
-
-        handleNewLocation(location);
-
-    }
-
-    @Override
-    protected void onPause() {
-        super.onPause();
-        if (mGoogleApiClient.isConnected()) {
-            LocationServices.FusedLocationApi.removeLocationUpdates(mGoogleApiClient,this);
-            mGoogleApiClient.disconnect();
+        catch(IOException ioException){
+            Log.d(TAG, "pointsOfInterest: Error getting location", ioException);
         }
+        catch(IllegalArgumentException illegalArgumentException){
+            for(int i=0;i<addressList.size();i++){
+                Log.d(TAG, "pointsOfInterest: Latitude "+addressList.get(i).getLatitude() + " Longitude " + addressList.get(i).getLongitude(), illegalArgumentException);
+            }
+
+        }
+
     }
-    @Override
-    protected void onResume() {
-        super.onResume();
-        mGoogleApiClient.connect();
-    }*/
 
     public void getLocation(View v) {
 
@@ -220,7 +164,20 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             if (isNetworkEnabled) {
                 Log.d(TAG, "getLocation: Network enabled");
             }
-
+            if(tracking==false){
+                tracking=true;
+                Toast.makeText(this,"Tracking Enabled",Toast.LENGTH_SHORT).show();
+               // trackingButton.setText("Tracking On");
+            }
+            else if(tracking==true){
+                trackingButton = (Button) findViewById(R.id.button4);
+                Toast.makeText(this,"Tracking disabled",Toast.LENGTH_SHORT).show();
+                tracking=false;
+                isGPSEnabled=false;
+                isNetworkEnabled=false;
+                locationManager.removeUpdates(locationListenerNetwork);
+                locationManager.removeUpdates(locationListenerGPS);
+            }
             if (!isGPSEnabled && !isNetworkEnabled) {
                 Log.d(TAG, "getLocation: No provider is enabled");
             } else {
@@ -298,8 +255,8 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
             //setup a switch statement to check the status input parameter
             //case LocationProvider.AVAILABLE --> output message to Log.d and Toast
             if (status == LocationProvider.AVAILABLE) {
-                Log.d(TAG, "locationListenerGPS: Location Provider is availabe");
-                Toast.makeText(MapsActivity.this, "Location provider availabe", Toast.LENGTH_SHORT);
+                Log.d(TAG, "locationListenerGPS: Location Provider is available");
+                Toast.makeText(MapsActivity.this, "Location provider available", Toast.LENGTH_SHORT);
                 isGPSEnabled=true;
                 isNetworkEnabled=false;
             }
@@ -485,6 +442,16 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
 
             mMap.animateCamera(update);
         }
+    }
+    public void clearMap(View v) {
+
+        mMap.clear();
+
+    }
+
+    public void pointsNearby(View v){
+        Geocoder finder = new Geocoder(this, Locale.getDefault());
+        ArrayList addresses = new ArrayList();
     }
 
 }
