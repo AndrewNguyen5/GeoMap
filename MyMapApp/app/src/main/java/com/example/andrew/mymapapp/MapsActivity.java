@@ -124,18 +124,33 @@ public class MapsActivity extends FragmentActivity implements OnMapReadyCallback
         List<Address> addressList = null;
         try{
             Log.d(TAG, "pointsOfInterest: Getting address");
-            addressList = geo.getFromLocationName(loc,500);
-            for(int i=0;i<addressList.size();i++){
-                mMap.addMarker(new MarkerOptions()
-                        .position(new LatLng(addressList.get(i).getLatitude(),
-                                addressList.get(i).getLongitude()))
-                        .title(addressList.get(i).toString()));
-                mMap.moveCamera(CameraUpdateFactory
-                        .newLatLng
-                                (new LatLng(addressList.get(i).getLatitude(),
+            if(!loc.equals("")) {
+                if (myLocation != null) {
+                    addressList = geo.getFromLocationName(loc, 500
+                            , myLocation.getLatitude() - .08333333
+                            , myLocation.getLongitude() - .08333333,
+                            myLocation.getLatitude() + .08333333,
+                            myLocation.getLongitude() + .08333333);
+                    for (int i = 0; i < addressList.size(); i++) {
+                        mMap.addMarker(new MarkerOptions()
+                                .position(new LatLng(addressList.get(i).getLatitude(),
+                                        addressList.get(i).getLongitude()))
+                                .title(loc));
+                        mMap.moveCamera(CameraUpdateFactory
+                                .newLatLng
+                                        (new LatLng(addressList.get(i).getLatitude(),
                                                 addressList.get(i).getLongitude())));
+                    }
+                    Log.d(TAG, "pointsOfInterest: Successful");
+                } else if (myLocation == null) {
+                    Log.d(TAG, "pointsOfInterest: Tracking needs to be turned on");
+                    Toast.makeText(this, "Turn on Tracking", Toast.LENGTH_SHORT).show();
+                }
             }
-            Log.d(TAG,"pointsOfInterest: Successful");
+            else if(loc.equals("")){
+                Log.d(TAG,"pointsOfInterest: No input");
+                Toast.makeText(this, "Put a location into the input field", Toast.LENGTH_SHORT).show();
+            }
         }
         catch(IOException ioException){
             Log.d(TAG, "pointsOfInterest: Error getting location", ioException);
